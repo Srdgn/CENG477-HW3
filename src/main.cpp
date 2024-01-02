@@ -583,6 +583,8 @@ void init()
 	ParseObj("quad.obj",  &gVertices2, &gTextures2, &gNormals2, &gFaces2);
 	ParseObj("bunny.obj", &gVertices1, &gTextures1, &gNormals1, &gFaces1);
 
+
+
 	glEnable(GL_DEPTH_TEST);
 	initShaders();
 	
@@ -677,7 +679,7 @@ bool isHit(){
     return false;
 }
 bool isCheckPoint(){
-    return true;
+    return false;
 }
 
 void gameOver()
@@ -685,6 +687,19 @@ void gameOver()
     rotationGameOver = true;
     speed = 0;
     acceleration = 0;
+}
+void calculate_score(){
+    score = int(-position.z + 1000*count_checkpoint);
+	std::cout<<score<<std::endl;
+}
+
+void showScore()
+{
+    calculate_score();
+    const std::string score_string = "Score: " + std::to_string(score);
+    renderText("Test Text", 10, 10);
+
+	//renderText(score_string.c_str(), 10, 10);
 }
 
 void display()
@@ -703,7 +718,7 @@ void display()
 
     displayGround();
     displayBunny();
-    //showScore();
+    showScore();
 
 	// Draw the scene
 	//drawModels();
@@ -767,16 +782,6 @@ void keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
 		restart();
 	}
 	
-}
-void calculate_score(){
-    score = int(-position.z + 1000*count_checkpoint);
-}
-
-void showScore()
-{
-    calculate_score();
-    const std::string score_string = "Score: " + std::to_string(score);
-    renderText(score_string.c_str(), 10, 10);
 }
 
 double jump_value = 0.0f;
