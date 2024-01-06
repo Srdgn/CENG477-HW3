@@ -38,18 +38,25 @@ int activeProgramIndex = 0;
 
 int count_checkpoint = 0;
 int score = 0;
-bool rotationGameOver = false;
-bool rotationCheckPoint = false;
+bool rotationGameOverFlag = false;
+bool rotationCheckPointFlag = false;
+
+double rotationCheckPointAngle = 0.0f;
+
 glm::vec3 cameraPosition(0.0f,0.0f,0.0f);
 
 glm::vec3 starting_position(0,-5,-10);
 glm::vec3 position = starting_position;
 glm::vec3 starting_positionBunny(0.0f,1.0f,0.0f);
 glm::vec3 positionBunny = starting_positionBunny;
-float starting_speed = 0.1;
+float starting_speed = 0.2;
 float speed = starting_speed;
 float starting_acceleration = 0.0001;
 float acceleration = starting_acceleration;
+
+// flags to move left or right
+bool is_left = false;
+bool is_right = false;
 
 struct Vertex
 {
@@ -628,6 +635,8 @@ void displayBunny()
 	glm::mat4 matS = glm::scale(glm::mat4(1.0), glm::vec3(0.5, 0.5, 0.5));
 	glm::mat4 matR = glm::rotate<float>(glm::mat4(1.0), (-90. / 180.) * M_PI, glm::vec3(0.0, 1.0, 0.0));
     glm::mat4 matR2 = glm::rotate<float>(glm::mat4(1.0), (10. / 180.) * M_PI, glm::vec3(1.0, 0.0, 0.0));
+	if(rotationGameOverFlag) matR2 *= glm::rotate<float>(glm::mat4(1.0), -0.5 * M_PI, glm::vec3(0.0, 0.0, 1.0));
+	if(rotationCheckPointFlag) matR2 *= glm::rotate<float>(glm::mat4(1.0), (rotationCheckPointAngle / 180.) * M_PI, glm::vec3(0.0, 1.0, 0.0));
 	glm::mat4 matRz = glm::rotate(glm::mat4(1.0), angleRad, glm::vec3(0.0, 0.0, 1.0));
 	modelingMatrix = matT * matRz * matR2* matR; // starting from right side, rotate around Y to turn back, then rotate around Z some more at each frame, then translate.
 
@@ -675,16 +684,23 @@ void displayGround()
     drawGround();
 }
 
+void displayCheckPoints()
+{
+	//TODO
+}
+
+//TODO
 bool isHit(){
     return false;
 }
+//TODO
 bool isCheckPoint(){
     return false;
 }
 
 void gameOver()
 {
-    rotationGameOver = true;
+    rotationGameOverFlag = true;
     speed = 0;
     acceleration = 0;
 }
@@ -693,23 +709,22 @@ void calculate_score(){
 	std::cout<<score<<std::endl;
 }
 
+
 void showScore()
 {
     calculate_score();
-    const std::string score_string = "Score: " + std::to_string(score);
-    renderText("Test Text", 10, 10);
+    const std::string score_string = "Score: " + std::to_string(score);  //TEST İÇİN, SİL
 
+	//TODO
+    renderText("Test Text", 10, 10);
 	//renderText(score_string.c_str(), 10, 10);
 }
+
+
 
 void display()
 {
 
-    if(isHit()) gameOver();
-    else if(isCheckPoint()){
-        count_checkpoint += 1;
-        rotationCheckPoint = true;
-    }
     glClearColor(0, 0, 0, 1);
 	glClearDepth(1.0f);
 	glClearStencil(0);
@@ -718,11 +733,8 @@ void display()
 
     displayGround();
     displayBunny();
+	displayCheckPoints();
     showScore();
-
-	// Draw the scene
-	//drawModels();
-
 }
 
 void reshape(GLFWwindow* window, int w, int h)
@@ -757,7 +769,34 @@ void goRight(){
     bool onGround = positionBunny.x < 7.5;
     if(onGround)positionBunny.x += speed/2;
 }
+
+void move()
+{
+	//is rotation complete
+	if(rotationCheckPointAngle >360.0f){
+		rotationCheckPointAngle = 0;
+		rotationCheckPointFlag = false;
+	}
+
+	if(rotationCheckPointFlag)
+	{
+		float rotationConstant = 10;
+		rotationCheckPointAngle += speed * rotationConstant;
+	}
+
+	if(isHit()) gameOver();
+    else if(isCheckPoint()){
+        count_checkpoint += 1;
+        rotationCheckPointFlag = true;
+    }
+	if(is_left && !is_right) goLeft();
+	if(is_right && !is_left) goRight();
+}
+
 void restart(){
+	rotationCheckPointFlag = false;
+	rotationGameOverFlag = false;
+	rotationCheckPointAngle = 0;
     cameraPosition =glm::vec3(0.0f,0.0f,0.0f);
     viewingMatrix = glm::lookAt(cameraPosition, glm::vec3(0, 0, 0) + glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
     position = starting_position;
@@ -769,17 +808,37 @@ void restart(){
 
 void keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-	if (key == GLFW_KEY_A && (action == GLFW_REPEAT  ||action == GLFW_PRESS))
+	if (key == GLFW_KEY_A && (action == GLFW_PRESS))
 	{
-		goLeft();
+		is_left = true;
 	}
-	else if (key == GLFW_KEY_D && (action == GLFW_REPEAT  ||action == GLFW_PRESS))
+	else if(key == GLFW_KEY_A && (action == GLFW_RELEASE))
 	{
-		goRight();
+		is_left = false;
 	}
-	else if (key == GLFW_KEY_R && action == GLFW_PRESS)
+	if (key == GLFW_KEY_D && (action == GLFW_PRESS))
+	{
+		is_right = true;
+	}
+	else if(key == GLFW_KEY_D && (action == GLFW_RELEASE))
+	{
+		is_right = false;
+	}
+
+	if (key == GLFW_KEY_R && action == GLFW_PRESS)
 	{
 		restart();
+	}
+
+
+	// TEST İÇİN SONRA SİL
+	else if(key == GLFW_KEY_H && action == GLFW_PRESS)
+	{
+		gameOver();
+	}
+	else if(key == GLFW_KEY_C && action == GLFW_PRESS)
+	{
+		rotationCheckPointFlag = true;
 	}
 	
 }
@@ -788,10 +847,11 @@ double jump_value = 0.0f;
 bool goingUp = true;
 void jump()
 {
-
+	float jumping_constant = 0.5;
+	float jumping_speed = speed * jumping_constant;
     if(goingUp)
     {
-        jump_value += speed;
+        jump_value += jumping_speed;
         if(jump_value>=2){
 
             jump_value = 2;
@@ -800,7 +860,7 @@ void jump()
     }
     else  //going down
     {
-        jump_value -= speed;
+        jump_value -= jumping_speed;
         if(jump_value<=0){
 
             jump_value = 0;
@@ -823,12 +883,18 @@ void calculateNextValues()
 
 }
 
+void createCheckpoint()
+{
+	//TODO
+}
+
 void mainLoop(GLFWwindow* window)
 {
 	while (!glfwWindowShouldClose(window))
 	{
+		createCheckpoint();
+		move(); //moves the bunny to right or left, check if the hit
 		display();
-        
         calculateNextValues();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
