@@ -1,23 +1,25 @@
 #version 330 core
 
-varying vec4 FragPos;  // Assuming this is the fragment's position in world space
+uniform mat4 modelingMatrix;
+uniform mat4 viewingMatrix;
+uniform mat4 projectionMatrix;
 
+layout(location=0) in vec3 inVertex;
+layout(location=1) in vec3 inNormal;
 
-out vec4 FragColor;
+out vec4 fragWorldPos;
+out vec3 fragWorldNor;
 
-float offset = 0.0f;
-float scale = 1.0f;
-void main()
+void main(void)
 {
-    // Assuming you have computed x, y, and z in the vertex shader and passed them as varying to the fragment shader
-    FragPos = gl_Vertex;
-    bool x = int((FragPos.x + offset) * scale) % 2 == 1;
-    bool y = int((FragPos.y + offset) * scale) % 2 == 1;
-    bool z = int((FragPos.z + offset) * scale) % 2 == 1 ;
-    bool xorXY = x != y;
+	// Compute the world coordinates of the vertex and its normal.
+	// These coordinates will be interpolated during the rasterization
+	// stage and the fragment shader will receive the interpolated
+	// coordinates.
 
-    if (xorXY != z )
-        FragColor = vec4(0.0, 0.0, 0.0, 1.0);  // Black
-    else
-        FragColor = vec4(1.0, 1.0, 1.0, 1.0);  // White
+	fragWorldPos = modelingMatrix * vec4(inVertex, 1);
+	fragWorldNor = inverse(transpose(mat3x3(modelingMatrix))) * inNormal;
+
+    gl_Position = projectionMatrix * viewingMatrix * modelingMatrix * vec4(inVertex, 1);
 }
+
