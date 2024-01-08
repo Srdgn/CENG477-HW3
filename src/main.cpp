@@ -16,11 +16,11 @@
 #include <glm/gtc/type_ptr.hpp> 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include <ctime>
 
 #define BUFFER_OFFSET(i) ((char*)NULL + (i))
 
 using namespace std;
-
 GLuint gProgram[4];
 int gWidth, gHeight;
 
@@ -56,11 +56,20 @@ float acceleration = starting_acceleration;
 
 float checkpoint_horizontal_distance = 8;
 float distance_to_hit = 2;
-glm::vec3 position_checkpoint_base(0,-3,-100);
+glm::vec3 position_checkpoint_base(0,-3,0);
 
 // flags to move left or right
 bool is_left = false;
 bool is_right = false;
+
+bool show_checkpoint0 = true;
+bool show_checkpoint1 = true;
+bool show_checkpoint2 = true;
+
+bool is_yellow_checkpoint0 = false;
+bool is_yellow_checkpoint1 = false;
+bool is_yellow_checkpoint2 = false;
+
 
 struct Vertex
 {
@@ -766,7 +775,6 @@ void displayBunny()
     static float angle = 0;
 
 	float angleRad = (float)(angle / 180.0) * M_PI;
-
 	// Compute the modeling matrix 
 	glm::mat4 matT = glm::translate(glm::mat4(1.0), position+positionBunny);
 	glm::mat4 matS = glm::scale(glm::mat4(1.0), glm::vec3(0.5, 0.5, 0.5));
@@ -823,8 +831,6 @@ void displayGround()
 
 void displayCheckPoints()
 {
-	activeProgramIndex = 2;
-
 
 	// Compute the modeling matrix 
 	glm::mat4 matT = glm::translate(glm::mat4(1.0), position_checkpoint_base);
@@ -833,52 +839,43 @@ void displayCheckPoints()
 
 	modelingMatrix = matT * matS; // starting from right side, rotate around Y to turn back, then rotate around Z some more at each frame, then translate.
 
-	glUseProgram(gProgram[2]);
+	if(is_yellow_checkpoint0) glUseProgram(gProgram[2]);
+	else glUseProgram(gProgram[3]);
 	glUniformMatrix4fv(projectionMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 	glUniformMatrix4fv(viewingMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(viewingMatrix));
 	glUniformMatrix4fv(modelingMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(modelingMatrix));
 	glUniform3fv(eyePosLoc[2], 1, glm::value_ptr(eyePos));
 
-    drawCheckpoint();
+    if(show_checkpoint0) drawCheckpoint();
 
 	matT = glm::translate(glm::mat4(1.0), position_checkpoint_base+ glm::vec3(checkpoint_horizontal_distance,0,0));
 	matS = glm::scale(glm::mat4(1), glm::vec3(1.5, 2, 1.5));
 
 	modelingMatrix = matT * matS; // starting from right side, rotate around Y to turn back, then rotate around Z some more at each frame, then translate.
 
-	glUseProgram(gProgram[3]);
+	if(is_yellow_checkpoint1) glUseProgram(gProgram[2]);
+	else glUseProgram(gProgram[3]);
 	glUniformMatrix4fv(projectionMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 	glUniformMatrix4fv(viewingMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(viewingMatrix));
 	glUniformMatrix4fv(modelingMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(modelingMatrix));
 	glUniform3fv(eyePosLoc[2], 1, glm::value_ptr(eyePos));
-	drawCheckpoint();
+	if(show_checkpoint1)drawCheckpoint();
 
 	matT = glm::translate(glm::mat4(1.0), position_checkpoint_base+ glm::vec3(-checkpoint_horizontal_distance,0,0));
 	matS = glm::scale(glm::mat4(1), glm::vec3(1.5, 2, 1.5));
 
 	modelingMatrix = matT * matS; // starting from right side, rotate around Y to turn back, then rotate around Z some more at each frame, then translate.
 
-	glUseProgram(gProgram[3]);
+	if(is_yellow_checkpoint2) glUseProgram(gProgram[2]);
+	else glUseProgram(gProgram[3]);
 	glUniformMatrix4fv(projectionMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 	glUniformMatrix4fv(viewingMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(viewingMatrix));
 	glUniformMatrix4fv(modelingMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(modelingMatrix));
 	glUniform3fv(eyePosLoc[2], 1, glm::value_ptr(eyePos));
-	drawCheckpoint();
+	if(show_checkpoint2)drawCheckpoint();
 
 }
 
-bool isHit(){
-   	float distance = sqrt(pow(position_checkpoint_base.x-checkpoint_horizontal_distance - position.x- positionBunny.x,2)+ pow(position_checkpoint_base.z - position.z- positionBunny.z,2) );
-   	if(distance<distance_to_hit) return true;
-   	 distance = sqrt(pow(position_checkpoint_base.x+checkpoint_horizontal_distance - position.x - positionBunny.x,2)+ pow(position_checkpoint_base.z - position.z- positionBunny.z,2) );
-	if(distance<distance_to_hit) return true;
-    	return false;
-}
-bool isCheckPoint(){
-	float distance = sqrt(pow(position_checkpoint_base.x - position.x - positionBunny.x,2)+ pow(position_checkpoint_base.z - position.z - positionBunny.z,2) );
-
-    	return distance< distance_to_hit;
-}
 
 void gameOver()
 {
@@ -887,6 +884,59 @@ void gameOver()
     speed = 0;
     acceleration = 0;
 }
+
+void checkHit()
+{
+	float distance = sqrt(pow(position_checkpoint_base.x - position.x- positionBunny.x,2)+ pow(position_checkpoint_base.z - position.z- positionBunny.z,2) );
+	if(distance<distance_to_hit)
+	{
+		show_checkpoint0 = false;
+		if(is_yellow_checkpoint0)
+		{
+			count_checkpoint += 1;
+        	rotationCheckPointFlag = true;
+		}
+		else
+		{
+			gameOver();
+		}
+
+	}
+	distance = sqrt(pow(position_checkpoint_base.x+checkpoint_horizontal_distance - position.x- positionBunny.x,2)+ pow(position_checkpoint_base.z - position.z- positionBunny.z,2) );
+	if(distance<distance_to_hit)
+	{
+		show_checkpoint1 = false;
+		if(is_yellow_checkpoint1)
+		{
+			count_checkpoint += 1;
+        	rotationCheckPointFlag = true;
+		}
+		else
+		{
+			
+			gameOver();
+		}
+
+	}
+	distance = sqrt(pow(position_checkpoint_base.x -checkpoint_horizontal_distance - position.x- positionBunny.x,2)+ pow(position_checkpoint_base.z - position.z- positionBunny.z,2) );
+	if(distance<distance_to_hit)
+	{
+		show_checkpoint2 = false;
+		if(is_yellow_checkpoint2)
+		{
+			count_checkpoint += 1;
+        	rotationCheckPointFlag = true;
+		}
+		else
+		{
+			gameOver();
+		}
+
+	}
+}
+
+
+
 void calculate_score(){
     score = int(-position.z + 1000*count_checkpoint);
 }
@@ -966,16 +1016,61 @@ void move()
 		rotationCheckPointAngle += speed * rotationConstant;
 	}
 
-	if(isHit()) gameOver();
-    else if(isCheckPoint()){
-        count_checkpoint += 1;
-        rotationCheckPointFlag = true;
-    }
+	checkHit();
 	if(is_left && !is_right) goLeft();
 	if(is_right && !is_left) goRight();
 }
 
+void createCheckpoint()
+{
+
+	if(position_checkpoint_base.z > (position.z + 10))
+	{
+
+		show_checkpoint0 = true;
+		show_checkpoint1 = true;
+		show_checkpoint2 = true;
+
+		is_yellow_checkpoint0 = false;
+		is_yellow_checkpoint1 = false;
+		is_yellow_checkpoint2 = false;
+		position_checkpoint_base.z -= 100;
+
+		std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
+
+		int randomIndex = std::rand() % 3 + 1;
+
+		if (randomIndex == 1) {
+			is_yellow_checkpoint0 = true;
+		} else if (randomIndex == 2) {
+			is_yellow_checkpoint1 = true;
+		} else {
+			is_yellow_checkpoint2 = true;
+		}
+	}
+}
+
 void restart(){
+	show_checkpoint0 = true;
+	show_checkpoint1 = true;
+	show_checkpoint2 = true;
+
+	is_yellow_checkpoint0 = false;
+	is_yellow_checkpoint1 = false;
+	is_yellow_checkpoint2 = false;
+	std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
+
+	int randomIndex = std::rand() % 3 + 1;
+
+	if (randomIndex == 1) {
+		is_yellow_checkpoint0 = true;
+	} else if (randomIndex == 2) {
+		is_yellow_checkpoint1 = true;
+	} else {
+		is_yellow_checkpoint2 = true;
+	}
 	position_checkpoint_base = glm::vec3(0,-3,-100);
 	rotationCheckPointFlag = false;
 	rotationGameOverFlag = false;
@@ -984,7 +1079,7 @@ void restart(){
     viewingMatrix = glm::lookAt(cameraPosition, glm::vec3(0, 0, 0) + glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
     position = starting_position;
     speed = starting_speed;
-
+	
     //rotation = 0; 
     positionBunny = starting_positionBunny;
 }
@@ -1014,16 +1109,6 @@ void keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
 	}
 
 
-	// TEST İÇİN SONRA SİL
-	else if(key == GLFW_KEY_H && action == GLFW_PRESS)
-	{
-		gameOver();
-	}
-	else if(key == GLFW_KEY_C && action == GLFW_PRESS)
-	{
-		rotationCheckPointFlag = true;
-	}
-	
 }
 
 double jump_value = 0.0f;
@@ -1066,13 +1151,6 @@ void calculateNextValues()
 
 }
 
-void createCheckpoint()
-{
-	if(position_checkpoint_base.z > (position.z + 10))
-	{
-		position_checkpoint_base.z -= 100;
-	}
-}
 
 void mainLoop(GLFWwindow* window)
 {
