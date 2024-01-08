@@ -21,13 +21,13 @@
 
 using namespace std;
 
-GLuint gProgram[2];
+GLuint gProgram[4];
 int gWidth, gHeight;
 
-GLint modelingMatrixLoc[2];
-GLint viewingMatrixLoc[2];
-GLint projectionMatrixLoc[2];
-GLint eyePosLoc[2];
+GLint modelingMatrixLoc[4];
+GLint viewingMatrixLoc[4];
+GLint projectionMatrixLoc[4];
+GLint eyePosLoc[4];
 
 glm::mat4 projectionMatrix;
 glm::mat4 viewingMatrix;
@@ -53,6 +53,9 @@ float starting_speed = 0.2;
 float speed = starting_speed;
 float starting_acceleration = 0.0001;
 float acceleration = starting_acceleration;
+
+
+glm::vec3 position_checkpoint_base(0,-3,-100);
 
 // flags to move left or right
 bool is_left = false;
@@ -102,6 +105,11 @@ vector<Texture> gTextures2;
 vector<Normal> gNormals2;
 vector<Face> gFaces2;
 
+vector<Vertex> gVertices3;
+vector<Texture> gTextures3;
+vector<Normal> gNormals3;
+vector<Face> gFaces3;
+
 GLuint gVertexAttribBuffer1, gIndexBuffer1;
 GLint gInVertexLoc1, gInNormalLoc1;
 int gVertexDataSizeInBytes1, gNormalDataSizeInBytes1;
@@ -109,6 +117,10 @@ int gVertexDataSizeInBytes1, gNormalDataSizeInBytes1;
 GLuint gVertexAttribBuffer2, gIndexBuffer2;
 GLint gInVertexLoc2, gInNormalLoc2;
 int gVertexDataSizeInBytes2, gNormalDataSizeInBytes2;
+
+GLuint gVertexAttribBuffer3, gIndexBuffer3;
+GLint gInVertexLoc3, gInNormalLoc3;
+int gVertexDataSizeInBytes3, gNormalDataSizeInBytes3;
 
 bool ParseObj(const string& fileName,vector<Vertex> *gVertices,vector<Texture> *gTextures, vector<Normal> *gNormals, vector<Face> *gFaces)
 {
@@ -329,6 +341,8 @@ void initShaders()
 
 	gProgram[0] = glCreateProgram();
 	gProgram[1] = glCreateProgram();
+	gProgram[2] = glCreateProgram();
+	gProgram[3] = glCreateProgram();
 
 	// Create the shaders for both programs
 
@@ -338,6 +352,11 @@ void initShaders()
 	GLuint vs2 = createVS("vert2.glsl");
 	GLuint fs2 = createFS("frag2.glsl");
 
+	GLuint vs3 = createVS("vert3.glsl");
+	GLuint fs3 = createFS("frag3.glsl");
+	GLuint vs4 = createVS("vert4.glsl");
+	GLuint fs4 = createFS("frag4.glsl");
+
 	// Attach the shaders to the programs
 
 	glAttachShader(gProgram[0], vs1);
@@ -345,6 +364,14 @@ void initShaders()
 
 	glAttachShader(gProgram[1], vs2);
 	glAttachShader(gProgram[1], fs2);
+
+	glAttachShader(gProgram[2], vs3);
+	glAttachShader(gProgram[2], fs3);
+
+	glAttachShader(gProgram[3], vs4);
+	glAttachShader(gProgram[3], fs4);
+
+
 
 	// Link the programs
 
@@ -366,10 +393,26 @@ void initShaders()
 		cout << "Program link failed" << endl;
 		exit(-1);
 	}
+	glLinkProgram(gProgram[2]);
+	glGetProgramiv(gProgram[2], GL_LINK_STATUS, &status);
+
+	if (status != GL_TRUE)
+	{
+		cout << "Program link failed" << endl;
+		exit(-1);
+	}
+	glLinkProgram(gProgram[3]);
+	glGetProgramiv(gProgram[3], GL_LINK_STATUS, &status);
+
+	if (status != GL_TRUE)
+	{
+		cout << "Program link failed" << endl;
+		exit(-1);
+	}
 
 	// Get the locations of the uniform variables from both programs
 
-	for (int i = 0; i < 2; ++i)
+	for (int i = 0; i < 4; ++i)
 	{
 		modelingMatrixLoc[i] = glGetUniformLocation(gProgram[i], "modelingMatrix");
 		viewingMatrixLoc[i] = glGetUniformLocation(gProgram[i], "viewingMatrix");
@@ -585,10 +628,91 @@ void initVBO1()
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(gVertexDataSizeInBytes1));
 }
 
+void initVBO3()
+{
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    assert(vao > 0);
+    glBindVertexArray(vao);
+    cout << "vao = " << vao << endl;
+
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    assert(glGetError() == GL_NONE);
+
+    glGenBuffers(1, &gVertexAttribBuffer3);
+    glGenBuffers(1, &gIndexBuffer3);
+
+    assert(gVertexAttribBuffer3 > 0 && gIndexBuffer3 > 0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, gVertexAttribBuffer3);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gIndexBuffer3);
+
+    gVertexDataSizeInBytes3 = gVertices3.size() * 3 * sizeof(GLfloat);
+    gNormalDataSizeInBytes3 = gNormals3.size() * 3 * sizeof(GLfloat);
+    int indexDataSizeInBytes = gFaces3.size() * 3 * sizeof(GLuint);
+    GLfloat* vertexData3 = new GLfloat[gVertices3.size() * 3];
+    GLfloat* normalData3 = new GLfloat[gNormals3.size() * 3];
+    GLuint* indexData3 = new GLuint[gFaces3.size() * 3];
+
+    float minX = 1e6, maxX = -1e6;
+    float minY = 1e6, maxY = -1e6;
+    float minZ = 1e6, maxZ = -1e6;
+
+    for (int i = 0; i < gVertices3.size(); ++i)
+    {
+        vertexData3[3 * i] = gVertices3[i].x;
+        vertexData3[3 * i + 1] = gVertices3[i].y;
+        vertexData3[3 * i + 2] = gVertices3[i].z;
+
+        minX = std::min(minX, gVertices3[i].x);
+        maxX = std::max(maxX, gVertices3[i].x);
+        minY = std::min(minY, gVertices3[i].y);
+        maxY = std::max(maxY, gVertices3[i].y);
+        minZ = std::min(minZ, gVertices3[i].z);
+        maxZ = std::max(maxZ, gVertices3[i].z);
+    }
+
+    std::cout << "minX = " << minX << std::endl;
+    std::cout << "maxX = " << maxX << std::endl;
+    std::cout << "minY = " << minY << std::endl;
+    std::cout << "maxY = " << maxY << std::endl;
+    std::cout << "minZ = " << minZ << std::endl;
+    std::cout << "maxZ = " << maxZ << std::endl;
+
+    for (int i = 0; i < gNormals3.size(); ++i)
+    {
+        normalData3[3 * i] = gNormals3[i].x;
+        normalData3[3 * i + 1] = gNormals3[i].y;
+        normalData3[3 * i + 2] = gNormals3[i].z;
+    }
+
+    for (int i = 0; i < gFaces3.size(); ++i)
+    {
+        indexData3[3 * i] = gFaces3[i].vIndex[0];
+        indexData3[3 * i + 1] = gFaces3[i].vIndex[1];
+        indexData3[3 * i + 2] = gFaces3[i].vIndex[2];
+    }
+
+    glBufferData(GL_ARRAY_BUFFER, gVertexDataSizeInBytes3 + gNormalDataSizeInBytes3, 0, GL_STATIC_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, gVertexDataSizeInBytes3, vertexData3);
+    glBufferSubData(GL_ARRAY_BUFFER, gVertexDataSizeInBytes3, gNormalDataSizeInBytes3, normalData3);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexDataSizeInBytes, indexData3, GL_STATIC_DRAW);
+
+    // done copying to GPU memory; can free now from CPU memory
+    delete[] vertexData3;
+    delete[] normalData3;
+    delete[] indexData3;
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(gVertexDataSizeInBytes3));
+}
+
 void init()
 {
 	ParseObj("quad.obj",  &gVertices2, &gTextures2, &gNormals2, &gFaces2);
 	ParseObj("bunny.obj", &gVertices1, &gTextures1, &gNormals1, &gFaces1);
+	ParseObj("cube.obj", &gVertices3, &gTextures3, &gNormals3, &gFaces3);
 
 
 
@@ -597,6 +721,8 @@ void init()
 	
     initVBO2();
     initVBO1();
+	initVBO3();
+
     initFreeType();
 }
 
@@ -609,6 +735,16 @@ void drawBunny()
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(gVertexDataSizeInBytes1));
 	glDrawElements(GL_TRIANGLES, gFaces1.size() * 3, GL_UNSIGNED_INT, 0);
+}
+
+void drawCheckpoint()
+{
+    glBindBuffer(GL_ARRAY_BUFFER, gVertexAttribBuffer3);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gIndexBuffer3);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(gVertexDataSizeInBytes3));
+	glDrawElements(GL_TRIANGLES, gFaces3.size() * 3, GL_UNSIGNED_INT, 0);
 }
 
 void drawGround()
@@ -686,7 +822,48 @@ void displayGround()
 
 void displayCheckPoints()
 {
-	//TODO
+	activeProgramIndex = 2;
+
+
+	// Compute the modeling matrix 
+	glm::mat4 matT = glm::translate(glm::mat4(1.0), position_checkpoint_base);
+	glm::mat4 matS = glm::scale(glm::mat4(1), glm::vec3(1.5, 2, 1.5));
+
+
+	modelingMatrix = matT * matS; // starting from right side, rotate around Y to turn back, then rotate around Z some more at each frame, then translate.
+
+	glUseProgram(gProgram[2]);
+	glUniformMatrix4fv(projectionMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+	glUniformMatrix4fv(viewingMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(viewingMatrix));
+	glUniformMatrix4fv(modelingMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(modelingMatrix));
+	glUniform3fv(eyePosLoc[2], 1, glm::value_ptr(eyePos));
+
+    drawCheckpoint();
+
+	matT = glm::translate(glm::mat4(1.0), position_checkpoint_base+ glm::vec3(8,0,0));
+	matS = glm::scale(glm::mat4(1), glm::vec3(1.5, 2, 1.5));
+
+	modelingMatrix = matT * matS; // starting from right side, rotate around Y to turn back, then rotate around Z some more at each frame, then translate.
+
+	glUseProgram(gProgram[3]);
+	glUniformMatrix4fv(projectionMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+	glUniformMatrix4fv(viewingMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(viewingMatrix));
+	glUniformMatrix4fv(modelingMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(modelingMatrix));
+	glUniform3fv(eyePosLoc[2], 1, glm::value_ptr(eyePos));
+	drawCheckpoint();
+
+	matT = glm::translate(glm::mat4(1.0), position_checkpoint_base+ glm::vec3(-8,0,0));
+	matS = glm::scale(glm::mat4(1), glm::vec3(1.5, 2, 1.5));
+
+	modelingMatrix = matT * matS; // starting from right side, rotate around Y to turn back, then rotate around Z some more at each frame, then translate.
+
+	glUseProgram(gProgram[3]);
+	glUniformMatrix4fv(projectionMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+	glUniformMatrix4fv(viewingMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(viewingMatrix));
+	glUniformMatrix4fv(modelingMatrixLoc[2], 1, GL_FALSE, glm::value_ptr(modelingMatrix));
+	glUniform3fv(eyePosLoc[2], 1, glm::value_ptr(eyePos));
+	drawCheckpoint();
+
 }
 
 //TODO
@@ -885,7 +1062,10 @@ void calculateNextValues()
 
 void createCheckpoint()
 {
-	//TODO
+	if(position_checkpoint_base.z > (position.z + 10))
+	{
+		position_checkpoint_base.z -= 100;
+	}
 }
 
 void mainLoop(GLFWwindow* window)
