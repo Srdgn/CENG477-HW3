@@ -49,12 +49,13 @@ glm::vec3 starting_position(0,-5,-10);
 glm::vec3 position = starting_position;
 glm::vec3 starting_positionBunny(0.0f,1.0f,0.0f);
 glm::vec3 positionBunny = starting_positionBunny;
-float starting_speed = 0.2;
+float starting_speed = 0.5;
 float speed = starting_speed;
 float starting_acceleration = 0.0001;
 float acceleration = starting_acceleration;
 
-
+float checkpoint_horizontal_distance = 8;
+float distance_to_hit = 2;
 glm::vec3 position_checkpoint_base(0,-3,-100);
 
 // flags to move left or right
@@ -840,7 +841,7 @@ void displayCheckPoints()
 
     drawCheckpoint();
 
-	matT = glm::translate(glm::mat4(1.0), position_checkpoint_base+ glm::vec3(8,0,0));
+	matT = glm::translate(glm::mat4(1.0), position_checkpoint_base+ glm::vec3(checkpoint_horizontal_distance,0,0));
 	matS = glm::scale(glm::mat4(1), glm::vec3(1.5, 2, 1.5));
 
 	modelingMatrix = matT * matS; // starting from right side, rotate around Y to turn back, then rotate around Z some more at each frame, then translate.
@@ -852,7 +853,7 @@ void displayCheckPoints()
 	glUniform3fv(eyePosLoc[2], 1, glm::value_ptr(eyePos));
 	drawCheckpoint();
 
-	matT = glm::translate(glm::mat4(1.0), position_checkpoint_base+ glm::vec3(-8,0,0));
+	matT = glm::translate(glm::mat4(1.0), position_checkpoint_base+ glm::vec3(-checkpoint_horizontal_distance,0,0));
 	matS = glm::scale(glm::mat4(1), glm::vec3(1.5, 2, 1.5));
 
 	modelingMatrix = matT * matS; // starting from right side, rotate around Y to turn back, then rotate around Z some more at each frame, then translate.
@@ -866,24 +867,28 @@ void displayCheckPoints()
 
 }
 
-//TODO
 bool isHit(){
-    return false;
+   	float distance = sqrt(pow(position_checkpoint_base.x-checkpoint_horizontal_distance - position.x- positionBunny.x,2)+ pow(position_checkpoint_base.z - position.z- positionBunny.z,2) );
+   	if(distance<distance_to_hit) return true;
+   	 distance = sqrt(pow(position_checkpoint_base.x+checkpoint_horizontal_distance - position.x - positionBunny.x,2)+ pow(position_checkpoint_base.z - position.z- positionBunny.z,2) );
+	if(distance<distance_to_hit) return true;
+    	return false;
 }
-//TODO
 bool isCheckPoint(){
-    return false;
+	float distance = sqrt(pow(position_checkpoint_base.x - position.x - positionBunny.x,2)+ pow(position_checkpoint_base.z - position.z - positionBunny.z,2) );
+
+    	return distance< distance_to_hit;
 }
 
 void gameOver()
 {
+	positionBunny.y = starting_positionBunny.y;
     rotationGameOverFlag = true;
     speed = 0;
     acceleration = 0;
 }
 void calculate_score(){
     score = int(-position.z + 1000*count_checkpoint);
-	std::cout<<score<<std::endl;
 }
 
 
@@ -971,6 +976,7 @@ void move()
 }
 
 void restart(){
+	position_checkpoint_base = glm::vec3(0,-3,-100);
 	rotationCheckPointFlag = false;
 	rotationGameOverFlag = false;
 	rotationCheckPointAngle = 0;
@@ -1135,3 +1141,4 @@ int main(int argc, char** argv)   // Create Main Function For Bringing It All To
 
 	return 0;
 }
+
